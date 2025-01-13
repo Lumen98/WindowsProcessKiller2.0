@@ -1,0 +1,9 @@
+{
+  "critical_processes": [
+    "chrome.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "winlogon.exe",
+    "services.exe"
+  ]
+}
