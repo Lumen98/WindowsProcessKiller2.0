@@ -77,58 +77,53 @@ def is_admin():
     except:
         return False
 
-def safe_kill(pid, parent_window=None):
-    """Gracefully kill a process, prompt to force kill if needed."""
+def safe_kill(pid, force=False, parent_window=None):
+    """
+    Attempts to terminate a process.
+    Shows a warning if the process is a system process.
+    """
     try:
         process = psutil.Process(pid)
         process_name = process.name()
 
-        # Ensure admin rights
-        if not is_admin():
-            if parent_window:
-                QtWidgets.QMessageBox.warning(
-                    parent_window,
-                    "Permission Denied",
-                    "Administrator privileges are required to kill this process."
-                )
+        # 🛑 Check if it's MpDefenderCoreService.exe (skip killing)
+        if process_name.lower() == "mpdefendercoreservice.exe":
+            QtWidgets.QMessageBox.information(
+                parent_window,
+                "Warning",
+                "You tried terminating the MpDefenderCoreService.exe process, which is a vital anti-virus process built into Windows.\n"
+                "To stop this process, disable Windows Defender via settings. (NOT RECOMMENDED)",
+                QtWidgets.QMessageBox.Ok
+            )
             return False
 
-        # Attempt graceful termination
+        # ⚠️ Check if the process is a system process
+        if is_system_process(process):
+            response = QtWidgets.QMessageBox.warning(
+                parent_window,
+                "System Process Warning",
+                f"{process_name} (PID: {pid}) is a system process.\n"
+                "Terminating it may cause system instability.\n\n"
+                "Do you really want to continue?",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No
+            )
+            if response == QtWidgets.QMessageBox.No:
+                return False  # User canceled the termination
+
+        # 🟢 Attempt graceful termination
         process.terminate()
         try:
             process.wait(timeout=3)
-            return True  # Graceful kill worked
+            return True  # Successfully terminated
         except psutil.TimeoutExpired:
-            pass  # Proceed to force kill prompt
+            if force:
+                # 🔥 Force kill if graceful termination failed
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], shell=True)
+                return True
+            return False
 
-        # Prompt user for force kill
-        if parent_window:
-            response = QtWidgets.QMessageBox.question(
-                parent_window,
-                "Force Kill?",
-                f"Failed to terminate {process_name} (PID: {pid}).\nWould you like to force kill it?",
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
-            )
-            if response == QtWidgets.QMessageBox.No:
-                return False
-
-        # Force kill if the user agrees
-        return force_kill(pid)
-
-    except psutil.NoSuchProcess:
-        return True  # Process already gone
-
-    except psutil.AccessDenied:
-        if parent_window:
-            QtWidgets.QMessageBox.warning(
-                parent_window,
-                "Access Denied",
-                "Access denied while trying to kill this process. Try running as Administrator."
-            )
-        return False
-
-    except Exception as e:
-        print(f"Error killing process {pid}: {e}")
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
         return False
 
 def list_processes():

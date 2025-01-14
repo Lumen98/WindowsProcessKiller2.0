@@ -107,34 +107,34 @@ class FPSBoosterApp(QtWidgets.QWidget):
     def handle_one_click_boost(self):
         """
         Kill the top 10 CPU hogs that are blacklisted or exceed 10% CPU usage,
-        except if it's MpDefenderCoreService.exe, then show a warning.
+        with a warning prompt for system processes.
         """
         processes = list_processes()
         processes = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)
 
         kill_count = 0
-        for proc in processes[:10]:
+        for proc in processes[:10]:  # 🔍 Target top 10 CPU hogs
             pid = proc['pid']
-            # If the process name sometimes has extra text (SYSTEM) appended, do a split
             real_name = proc['name'].split()[0]
             lower_name = real_name.lower()
 
+            # 🛑 Special case for MpDefenderCoreService.exe
             if lower_name == "mpdefendercoreservice.exe":
                 QtWidgets.QMessageBox.information(
                     self,
                     "Warning",
-                    "You tried terminating the MpDefenderCoreService.exe process which is a vital anti-virus process built into Windows.\n"
-                    "If you would like to stop this process you must disable Windows Defender completely via settings. (NOT RECOMMENDED)",
+                    "You tried terminating the MpDefenderCoreService.exe process, which is a vital anti-virus process built into Windows.\n"
+                    "To stop this process, disable Windows Defender via settings. (NOT RECOMMENDED)",
                     QtWidgets.QMessageBox.Ok
                 )
-                # Don't kill
-                continue
+                continue  # Skip this process
 
+            # 🔥 Attempt to kill the process (with system process warning)
             if is_process_blacklisted(lower_name) or proc['cpu_percent'] > 10.0:
-                # Attempt to kill any process (including system tasks)
-                if safe_kill(pid, parent_window=self):
+                if safe_kill(pid, parent_window=self):  # ✅ Now includes system process warning
                     kill_count += 1
 
+        # ✅ Show result summary
         QtWidgets.QMessageBox.information(
             self,
             "One-Click Boost",
@@ -206,62 +206,109 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.advanced_tab.setLayout(layout)
 
     def load_processes(self):
-        """Load processes into the advanced table, sorted and filtered."""
+        """Load processes into the advanced table, keeping checked processes synced."""
         self.table.setUpdatesEnabled(False)
+
+        # 🔴 Disconnect itemChanged signal to prevent recursive calls
+        try:
+            self.table.itemChanged.disconnect(self.sync_checkbox_states)
+        except TypeError:
+            pass  # Ignore if not connected
+
+        # 🔴 Step 1: Remember currently checked process names
+        self.selected_process_names = set()
+        for row in range(self.table.rowCount()):
+            checkbox_item = self.table.item(row, 0)
+            if checkbox_item and checkbox_item.checkState() == Qt.Checked:
+                name_item = self.table.item(row, 2)
+                if name_item:
+                    self.selected_process_names.add(name_item.text().lower())
+
         self.table.setRowCount(0)
 
+        # 🔴 Step 2: Load the latest process list
         processes = list_processes()
+
+        # Apply filters if needed
         if self.filter_text:
             processes = [p for p in processes if self.filter_text in p['name'].lower()]
 
         if self.filter_blacklisted_only:
             processes = [p for p in processes if is_process_blacklisted(p['name'].split()[0].lower())]
 
+        # 🔴 Step 3: Sort with checked processes at the top
         sort_option = self.sort_dropdown.currentText()
         if sort_option == "CPU Usage":
-            processes.sort(key=lambda x: x['cpu_percent'], reverse=True)
+            processes.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, -x['cpu_percent']))
         elif sort_option == "Memory Usage":
-            processes.sort(key=lambda x: x['memory_percent'], reverse=True)
+            processes.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, -x['memory_percent']))
         elif sort_option == "Alphabetical":
-            processes.sort(key=lambda x: x['name'].lower())
+            processes.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, x['name'].lower()))
         elif sort_option == "GPU Usage":
-            processes.sort(key=lambda x: x['gpu_percent'], reverse=True)
+            processes.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, -x['gpu_percent']))
 
+        # 🔴 Step 4: Rebuild the table and restore checked selections by name
         for row, proc in enumerate(processes):
             self.table.insertRow(row)
 
             # Checkbox
             checkbox = QtWidgets.QTableWidgetItem()
             checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            checkbox.setCheckState(Qt.Unchecked)
+            checkbox.setCheckState(Qt.Checked if proc['name'].lower() in self.selected_process_names else Qt.Unchecked)
             self.table.setItem(row, 0, checkbox)
 
             # PID
             pid_item = QtWidgets.QTableWidgetItem(str(proc['pid']))
             self.table.setItem(row, 1, pid_item)
 
-            # Name
+            # Process Name
             name_item = QtWidgets.QTableWidgetItem(proc['name'])
-            if proc['cpu_percent'] > 50:
-                name_item.setBackground(QtGui.QColor("red"))
-            elif proc['cpu_percent'] > 20:
-                name_item.setBackground(QtGui.QColor("yellow"))
             self.table.setItem(row, 2, name_item)
 
-            # CPU
+            # CPU %
             cpu_item = QtWidgets.QTableWidgetItem(f"{proc['cpu_percent']:.2f}")
             self.table.setItem(row, 3, cpu_item)
 
-            # Memory
+            # Memory %
             mem_item = QtWidgets.QTableWidgetItem(f"{proc['memory_percent']:.2f}")
             self.table.setItem(row, 4, mem_item)
 
-            # GPU
+            # GPU %
             gpu_val = f"{proc['gpu_percent']:.2f}" if proc['gpu_percent'] > 0 else "N/A"
             gpu_item = QtWidgets.QTableWidgetItem(gpu_val)
             self.table.setItem(row, 5, gpu_item)
 
+        # 🔴 Reconnect the signal after the table is updated
+        self.table.itemChanged.connect(self.sync_checkbox_states)
+
         self.table.setUpdatesEnabled(True)
+
+    def sync_checkbox_states(self, item):
+        """Ensure that selecting/deselecting one instance affects all instances of the same process."""
+        if item.column() == 0:  # Only respond to checkbox changes
+            row = item.row()
+            process_name = self.table.item(row, 2).text().lower()
+            new_state = item.checkState()
+
+            # 🔴 Disconnect to avoid recursive triggering
+            try:
+                self.table.itemChanged.disconnect(self.sync_checkbox_states)
+            except TypeError:
+                pass
+
+            # Apply the same check state to all matching processes
+            for r in range(self.table.rowCount()):
+                if self.table.item(r, 2).text().lower() == process_name:
+                    self.table.item(r, 0).setCheckState(new_state)
+
+            # Update the selection state
+            if new_state == Qt.Checked:
+                self.selected_process_names.add(process_name)
+            else:
+                self.selected_process_names.discard(process_name)
+
+            # 🔴 Reconnect after processing
+            self.table.itemChanged.connect(self.sync_checkbox_states)
 
     def remove_unnecessary_processes(self):
         """
