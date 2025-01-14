@@ -48,15 +48,88 @@ class FPSBoosterApp(QtWidgets.QWidget):
 
         self.basic_tab = QtWidgets.QWidget()
         self.advanced_tab = QtWidgets.QWidget()
+        self.manage_lists_tab = QtWidgets.QWidget()  # 🔥 Manage Lists Tab
 
         self.init_basic_tab()
         self.init_advanced_tab()
+        self.init_manage_lists_tab()
 
         self.tabs.addTab(self.basic_tab, "Basic Mode")
         self.tabs.addTab(self.advanced_tab, "Advanced Mode")
+        self.tabs.addTab(self.manage_lists_tab, "Manage Lists")  # 🔥 Add new tab
+
+        self.tabs.currentChanged.connect(self.on_tab_changed)
 
         main_layout.addWidget(self.tabs)
         self.setLayout(main_layout)
+
+    def on_tab_changed(self, index):
+        """
+        Refresh the Manage Lists tab only when it becomes active.
+        """
+        # Check if the "Manage Lists" tab is active
+        if self.tabs.tabText(index) == "Manage Lists":
+            self.load_manage_lists()  # 🔄 Refresh only when this tab is selected
+
+    def init_manage_lists_tab(self):
+        """
+        Create the Manage Lists tab with two tables for Whitelist and Blacklist,
+        each with a Remove button to delete entries.
+        """
+        layout = QtWidgets.QVBoxLayout()
+
+        # 🔵 Whitelist Section
+        whitelist_group = QtWidgets.QGroupBox("Whitelist")
+        whitelist_layout = QtWidgets.QVBoxLayout()
+
+        self.whitelist_table = QtWidgets.QTableWidget()
+        self.whitelist_table.setColumnCount(1)
+        self.whitelist_table.setHorizontalHeaderLabels(["Process Name"])
+        self.whitelist_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        whitelist_layout.addWidget(self.whitelist_table)
+
+        self.remove_whitelist_btn = QtWidgets.QPushButton("Remove from Whitelist")
+        self.remove_whitelist_btn.clicked.connect(self.remove_from_whitelist)
+        whitelist_layout.addWidget(self.remove_whitelist_btn)
+
+        whitelist_group.setLayout(whitelist_layout)
+        layout.addWidget(whitelist_group)
+
+        # 🔴 Blacklist Section
+        blacklist_group = QtWidgets.QGroupBox("Blacklist")
+        blacklist_layout = QtWidgets.QVBoxLayout()
+
+        self.blacklist_table = QtWidgets.QTableWidget()
+        self.blacklist_table.setColumnCount(1)
+        self.blacklist_table.setHorizontalHeaderLabels(["Process Name"])
+        self.blacklist_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        blacklist_layout.addWidget(self.blacklist_table)
+
+        self.remove_blacklist_btn = QtWidgets.QPushButton("Remove from Blacklist")
+        self.remove_blacklist_btn.clicked.connect(self.remove_from_blacklist)
+        blacklist_layout.addWidget(self.remove_blacklist_btn)
+
+        blacklist_group.setLayout(blacklist_layout)
+        layout.addWidget(blacklist_group)
+
+        self.manage_lists_tab.setLayout(layout)
+        self.load_manage_lists()  # 🔄 Load lists when opening the tab
+
+    def load_manage_lists(self):
+        """Load Whitelist and Blacklist into the tables."""
+        # Load Whitelist
+        whitelist = load_json_file(USER_WHITELIST_FILE, "user_defined_whitelist")
+        self.whitelist_table.setRowCount(0)
+        for row, process in enumerate(whitelist):
+            self.whitelist_table.insertRow(row)
+            self.whitelist_table.setItem(row, 0, QtWidgets.QTableWidgetItem(process))
+
+        # Load Blacklist
+        blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
+        self.blacklist_table.setRowCount(0)
+        for row, process in enumerate(blacklist):
+            self.blacklist_table.insertRow(row)
+            self.blacklist_table.setItem(row, 0, QtWidgets.QTableWidgetItem(process))
 
     # ---------------------------------------------------------------------
     # Basic Mode
@@ -85,6 +158,8 @@ class FPSBoosterApp(QtWidgets.QWidget):
         layout.addWidget(self.basic_table)
 
         self.basic_tab.setLayout(layout)
+
+        self.load_basic_table()
 
     def load_basic_table(self):
         """Show top CPU hogging processes."""
@@ -147,8 +222,9 @@ class FPSBoosterApp(QtWidgets.QWidget):
     def init_advanced_tab(self):
         layout = QtWidgets.QVBoxLayout()
 
-        # Filter row
+        # Existing Filter and Sort UI
         filter_layout = QtWidgets.QHBoxLayout()
+
         self.search_box = QtWidgets.QLineEdit()
         self.search_box.setPlaceholderText("Search by process name...")
         self.search_box.textChanged.connect(self.update_filter_text)
@@ -165,7 +241,7 @@ class FPSBoosterApp(QtWidgets.QWidget):
 
         layout.addLayout(filter_layout)
 
-        # Table
+        # Process Table
         self.table = QtWidgets.QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["Select", "PID", "Process Name", "CPU %", "Memory %", "GPU %"])
@@ -173,16 +249,12 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch)
         layout.addWidget(self.table)
 
-        # Action buttons
+        # Action Buttons Layout
         btn_layout = QtWidgets.QHBoxLayout()
 
         self.refresh_btn = QtWidgets.QPushButton("Refresh")
         self.refresh_btn.clicked.connect(self.load_processes)
         btn_layout.addWidget(self.refresh_btn)
-
-        self.remove_btn = QtWidgets.QPushButton("Remove Unnecessary Windows Processes")
-        self.remove_btn.clicked.connect(self.remove_unnecessary_processes)
-        btn_layout.addWidget(self.remove_btn)
 
         self.kill_btn = QtWidgets.QPushButton("Kill Selected")
         self.kill_btn.clicked.connect(self.kill_selected)
@@ -190,16 +262,24 @@ class FPSBoosterApp(QtWidgets.QWidget):
 
         layout.addLayout(btn_layout)
 
-        # Whitelist/Blacklist management
+        # 🔥 NEW Buttons for List Management
         list_mgmt_layout = QtWidgets.QHBoxLayout()
 
         self.add_whitelist_btn = QtWidgets.QPushButton("Add to Whitelist")
         self.add_whitelist_btn.clicked.connect(self.add_selected_to_whitelist)
         list_mgmt_layout.addWidget(self.add_whitelist_btn)
 
+        self.remove_whitelist_btn = QtWidgets.QPushButton("Remove from Whitelist")
+        self.remove_whitelist_btn.clicked.connect(self.remove_from_whitelist)
+        list_mgmt_layout.addWidget(self.remove_whitelist_btn)
+
         self.add_blacklist_btn = QtWidgets.QPushButton("Add to Blacklist")
         self.add_blacklist_btn.clicked.connect(self.add_selected_to_blacklist)
         list_mgmt_layout.addWidget(self.add_blacklist_btn)
+
+        self.remove_blacklist_btn = QtWidgets.QPushButton("Remove from Blacklist")
+        self.remove_blacklist_btn.clicked.connect(self.remove_from_blacklist)
+        list_mgmt_layout.addWidget(self.remove_blacklist_btn)
 
         layout.addLayout(list_mgmt_layout)
 
@@ -378,46 +458,72 @@ class FPSBoosterApp(QtWidgets.QWidget):
         )
 
     def add_selected_to_whitelist(self):
-        row_count = self.table.rowCount()
+        """Add selected processes to the Whitelist."""
         whitelist = load_json_file(USER_WHITELIST_FILE, "user_defined_whitelist")
 
-        for row in range(row_count):
+        for row in range(self.table.rowCount()):
             checkbox_item = self.table.item(row, 0)
             if checkbox_item and checkbox_item.checkState() == Qt.Checked:
-                displayed_name = self.table.item(row, 2).text()
-                real_name = displayed_name.split()[0]
-                if real_name not in whitelist:
-                    whitelist.append(real_name)
+                process_name = self.table.item(row, 2).text().split()[0]
+                if process_name not in whitelist:
+                    whitelist.append(process_name)
 
         save_json_file(USER_WHITELIST_FILE, "user_defined_whitelist", whitelist)
-        QtWidgets.QMessageBox.information(
-            self,
-            "Whitelist",
-            "Selected processes have been added to your Whitelist.\n"
-            "They will be protected from termination in the future."
-        )
+        QtWidgets.QMessageBox.information(self, "Whitelist", "Selected processes have been added to the Whitelist.")
         self.load_processes()
+
+    def remove_from_whitelist(self):
+        """Remove selected processes from the Whitelist."""
+        selected_rows = self.whitelist_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QtWidgets.QMessageBox.information(self, "No Selection",
+                                              "Please select a process to remove from the Whitelist.")
+            return
+
+        whitelist = load_json_file(USER_WHITELIST_FILE, "user_defined_whitelist")
+
+        for row in selected_rows:
+            process_name = self.whitelist_table.item(row.row(), 0).text()
+            if process_name in whitelist:
+                whitelist.remove(process_name)
+
+        save_json_file(USER_WHITELIST_FILE, "user_defined_whitelist", whitelist)
+        QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Whitelist.")
+        self.load_manage_lists()
 
     def add_selected_to_blacklist(self):
-        row_count = self.table.rowCount()
+        """Add selected processes to the Blacklist."""
         blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
 
-        for row in range(row_count):
+        for row in range(self.table.rowCount()):
             checkbox_item = self.table.item(row, 0)
             if checkbox_item and checkbox_item.checkState() == Qt.Checked:
-                displayed_name = self.table.item(row, 2).text()
-                real_name = displayed_name.split()[0]
-                if real_name not in blacklist:
-                    blacklist.append(real_name)
+                process_name = self.table.item(row, 2).text().split()[0]
+                if process_name not in blacklist:
+                    blacklist.append(process_name)
 
         save_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist", blacklist)
-        QtWidgets.QMessageBox.information(
-            self,
-            "Blacklist",
-            "Selected processes have been added to your Blacklist.\n"
-            "They will be targeted for termination if found running."
-        )
+        QtWidgets.QMessageBox.information(self, "Blacklist", "Selected processes have been added to the Blacklist.")
         self.load_processes()
+
+    def remove_from_blacklist(self):
+        """Remove selected processes from the Blacklist."""
+        selected_rows = self.blacklist_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QtWidgets.QMessageBox.information(self, "No Selection",
+                                              "Please select a process to remove from the Blacklist.")
+            return
+
+        blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
+
+        for row in selected_rows:
+            process_name = self.blacklist_table.item(row.row(), 0).text()
+            if process_name in blacklist:
+                blacklist.remove(process_name)
+
+        save_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist", blacklist)
+        QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Blacklist.")
+        self.load_manage_lists()
 
     def update_filter_text(self, text):
         self.filter_text = text.lower()
@@ -428,13 +534,15 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.load_processes()
 
     def start_auto_refresh(self):
+        """Refresh both Basic and Advanced tabs every 3 seconds."""
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.refresh_all_tables)
-        self.timer.start(2000)
+        self.timer.start(3000)  # Refresh every 3 seconds
 
     def refresh_all_tables(self):
-        self.load_basic_table()
-        self.load_processes()
+        """Refresh Basic and Advanced tables."""
+        self.load_basic_table()  # 🔥 Refresh Basic tab
+        self.load_processes()  # 🔥 Refresh Advanced tab
 
 
 def run_app():

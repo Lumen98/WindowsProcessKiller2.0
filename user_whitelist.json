@@ -1,5 +1,5 @@
 {
-  "user_defined_whitelist": [
-    "Spotify.exe"
-  ]
+    "user_defined_whitelist": [
+        "Taskmgr.exe"
+    ]
 }
