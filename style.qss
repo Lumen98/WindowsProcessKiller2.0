@@ -1,6 +1,6 @@
 /* style.qss */
 
-/* 1) Global Style for the entire window */
+/* GLOBAL APPLICATION STYLE */
 QWidget {
     background-color: #fafafa;
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -8,14 +8,16 @@ QWidget {
     color: #2d2d2d;
 }
 
-/* We'll specifically style the main window by its objectName (#MainWindowBase). */
+/* Main Window
+   A subtle border and corner radius for a modern look
+*/
 #MainWindowBase {
-    /* You can give a distinct background or keep it the same */
     background-color: #fdfdfd;
-    border: 1px solid #cccccc; /* Subtle border, optional */
+    border: 1px solid #cccccc;
+    border-radius: 6px;
 }
 
-/* 2) Tab Widget & Tab Bar */
+/* TABS */
 QTabWidget::pane {
     background-color: #ffffff;
     border: 1px solid #dddddd;
@@ -26,7 +28,7 @@ QTabWidget::pane {
 QTabBar::tab {
     background-color: #eeeeee;
     border: 1px solid #cccccc;
-    border-bottom-color: #999999; /* for visual separation */
+    border-bottom-color: #999999;
     border-radius: 4px 4px 0 0;
     padding: 6px 12px;
     margin-right: 1px;
@@ -38,7 +40,7 @@ QTabBar::tab:selected {
     color: #000000;
 }
 
-/* 3) GroupBoxes (Manage Lists Tab) */
+/* GROUPBOX */
 QGroupBox {
     border: 1px solid #cccccc;
     border-radius: 4px;
@@ -46,22 +48,31 @@ QGroupBox {
     padding: 8px;
     font-weight: bold;
 }
-
-/* The group box title needs a slight offset at the top */
 QGroupBox:title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 0 3px;
+    padding: 0 4px;
     margin-left: 4px;
     margin-top: 4px;
     font-size: 9pt;
 }
 
-/* 4) Tables: QTableWidget, QHeaderView, etc. */
+/* FRAME AROUND THE LOGO (OPTIONAL) */
+#LogoFrame {
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    background-color: #ffffff;
+    padding: 8px;
+}
+
+/* TABLE WIDGETS */
 QTableWidget {
-    gridline-color: #e0e0e0;
     background-color: #ffffff;
     alternate-background-color: #f9f9f9;
+    gridline-color: #e0e0e0;
+    selection-background-color: #d0e2f2; /* for selected rows */
+    selection-color: #000000;
+    border: none;
 }
 
 QHeaderView::section {
@@ -71,13 +82,49 @@ QHeaderView::section {
     padding: 4px;
 }
 
-/* Make rows alternate in color if you enable setAlternatingRowColors(True) */
-QTableView {
-    selection-background-color: #d0e2f2;
-    selection-color: #000000;
+/*
+   HOVER EFFECT ON TABLE ITEMS:
+   a gentle light blue highlight on mouse hover
+*/
+QTableView::item:hover {
+    background-color: #EFF5FF;
+    border: 1px solid #C8DCFF;
 }
 
-/* 5) Buttons */
+/*
+   SELECTED ITEM (when row is actually clicked/focused):
+   a slightly darker light blue
+*/
+QTableView::item:selected:active {
+    background-color: #C8DCFF;
+    color: #000000;
+}
+
+/* SCROLLBARS (OPTIONAL) */
+QScrollBar:vertical {
+    background: #f2f2f2;
+    width: 12px;
+    margin: 2px;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical {
+    background: #cccccc;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #b3b3b3;
+}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+    width: 0;
+}
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+/* BUTTONS */
 QPushButton {
     background-color: #0078d7;
     color: #ffffff;
@@ -85,24 +132,19 @@ QPushButton {
     border-radius: 4px;
     padding: 8px 16px;
 }
-
 QPushButton:hover {
     background-color: #005fa3;
 }
-
-/* Disabled buttons */
 QPushButton:disabled {
     background-color: #cccccc;
     color: #666666;
 }
 
-/* If you want a special look for the "One-Click Boost" button,
-   give it an objectName in code: self.one_click_boost_btn.setObjectName("OneClickBoostBtn") */
+/* SPECIAL "ONE-CLICK BOOST" BUTTON */
 #OneClickBoostBtn {
-    background-color: #ffa500; /* e.g., an orange color to stand out */
+    background-color: #ffa500;
     font-weight: bold;
 }
-
 #OneClickBoostBtn:hover {
     background-color: #ff8c00;
 }
