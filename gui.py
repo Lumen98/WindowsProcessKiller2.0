@@ -6,9 +6,7 @@ from collections import deque
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt
 
-# from process_manager import safe_kill, is_process_blacklisted  # If you have them in process_manager
 from process_manager import safe_kill
-
 from utils import (
     load_cached_processes,
     save_cached_processes,
@@ -25,22 +23,21 @@ def is_process_blacklisted(proc_name_lower):
     blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
     return proc_name_lower in [b.lower() for b in blacklist]
 
-
 class FPSBoosterApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("FPS Booster")
         self.resize(1200, 800)
 
+        # We'll give our main window an object name
+        # so we can style it separately in QSS if we want
+        self.setObjectName("MainWindowBase")
+
         # Dictionary: pid -> psutil.Process
         self.process_map = {}
 
         # Rolling usage history:
-        # pid -> {"cpu_history": deque([...]), "mem_history": deque([...])}
-        # We'll average these each time we display usage.
         self.rolling_usage = {}
-
-        # How many samples we keep per PID
         self.history_size = 3
 
         self.cached_processes = load_cached_processes()
@@ -61,8 +58,11 @@ class FPSBoosterApp(QtWidgets.QWidget):
     ############################################################
     def init_ui(self):
         main_layout = QtWidgets.QVBoxLayout()
-        self.tabs = QtWidgets.QTabWidget()
+        # A little more breathing room around the edges
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
+        self.tabs = QtWidgets.QTabWidget()
         self.basic_tab = QtWidgets.QWidget()
         self.advanced_tab = QtWidgets.QWidget()
         self.manage_lists_tab = QtWidgets.QWidget()
@@ -158,7 +158,9 @@ class FPSBoosterApp(QtWidgets.QWidget):
         layout.addWidget(self.logo_label)
 
         self.one_click_boost_btn = QtWidgets.QPushButton("One-Click Boost")
-        self.one_click_boost_btn.setStyleSheet("font-size: 24px; padding: 10px;")
+        # Give this button an objectName for special styling in QSS
+        self.one_click_boost_btn.setObjectName("OneClickBoostBtn")
+        self.one_click_boost_btn.setStyleSheet("font-size: 16px; padding: 8px;")
         self.one_click_boost_btn.clicked.connect(self.handle_one_click_boost)
         layout.addWidget(self.one_click_boost_btn, alignment=Qt.AlignCenter)
 
@@ -166,34 +168,25 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.basic_table.setColumnCount(4)
         self.basic_table.setHorizontalHeaderLabels(["PID", "Process Name", "CPU %", "Memory %"])
         self.basic_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        # If you want alternating row colors to show up:
+        self.basic_table.setAlternatingRowColors(True)
         layout.addWidget(self.basic_table)
 
         self.basic_tab.setLayout(layout)
 
     def load_basic_table(self):
-        """
-        Show top CPU hogging processes.
-        Instead of showing instant usage, we show the rolling average
-        for CPU usage (scaled to total cores).
-        """
         process_list = []
         for pid, proc in self.process_map.items():
             try:
                 name = proc.name()
-
-                # (A) Get the rolling average from rolling_usage:
-                # If no history yet, skip or treat as 0
                 if pid not in self.rolling_usage:
-                    continue  # or treat as 0% if you prefer
+                    continue
 
                 cpu_deque = self.rolling_usage[pid]["cpu_history"]
                 if len(cpu_deque) == 0:
                     continue
 
-                # Rolling average CPU (already scaled)
                 avg_cpu = sum(cpu_deque) / len(cpu_deque)
-
-                # Rolling average memory if you want (or just show instant)
                 mem_deque = self.rolling_usage[pid]["mem_history"]
                 avg_mem = sum(mem_deque) / len(mem_deque) if len(mem_deque) > 0 else 0
 
@@ -206,7 +199,6 @@ class FPSBoosterApp(QtWidgets.QWidget):
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-        # Sort descending by CPU
         process_list.sort(key=lambda x: x['cpu_percent'], reverse=True)
         top_processes = process_list[:10]
 
@@ -223,10 +215,6 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.basic_table.setUpdatesEnabled(True)
 
     def handle_one_click_boost(self):
-        """
-        Kill the top 10 CPU hogs that are blacklisted or exceed 10% average CPU usage.
-        """
-        # Build a list of processes by rolling average
         process_list = []
         for pid, proc in self.process_map.items():
             if pid not in self.rolling_usage:
@@ -243,7 +231,6 @@ class FPSBoosterApp(QtWidgets.QWidget):
                 'avg_cpu': avg_cpu
             })
 
-        # Sort descending by CPU
         process_list.sort(key=lambda x: x['avg_cpu'], reverse=True)
         top_processes = process_list[:10]
 
@@ -253,7 +240,6 @@ class FPSBoosterApp(QtWidgets.QWidget):
             real_name = item['name'].split()[0]
             lower_name = real_name.lower()
 
-            # If blacklisted or usage > 10%, attempt to kill
             if is_process_blacklisted(lower_name) or item['avg_cpu'] > 10.0:
                 if safe_kill(pid, parent_window=self):
                     kill_count += 1
@@ -270,7 +256,6 @@ class FPSBoosterApp(QtWidgets.QWidget):
     def init_advanced_tab(self):
         layout = QtWidgets.QVBoxLayout()
 
-        # Filter & Sort
         filter_layout = QtWidgets.QHBoxLayout()
         self.search_box = QtWidgets.QLineEdit()
         self.search_box.setPlaceholderText("Search by process name...")
@@ -288,15 +273,14 @@ class FPSBoosterApp(QtWidgets.QWidget):
 
         layout.addLayout(filter_layout)
 
-        # Table
         self.table = QtWidgets.QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["Select", "PID", "Process Name", "CPU %", "Memory %", "GPU %"])
         self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch)
+        self.table.setAlternatingRowColors(True)
         layout.addWidget(self.table)
 
-        # Action Buttons
         btn_layout = QtWidgets.QHBoxLayout()
         self.refresh_btn = QtWidgets.QPushButton("Refresh")
         self.refresh_btn.clicked.connect(self.load_processes)
@@ -308,9 +292,7 @@ class FPSBoosterApp(QtWidgets.QWidget):
 
         layout.addLayout(btn_layout)
 
-        # List Management Buttons
         list_mgmt_layout = QtWidgets.QHBoxLayout()
-
         self.add_whitelist_btn = QtWidgets.QPushButton("Add to Whitelist")
         self.add_whitelist_btn.clicked.connect(self.add_selected_to_whitelist)
         list_mgmt_layout.addWidget(self.add_whitelist_btn)
@@ -332,16 +314,12 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.advanced_tab.setLayout(layout)
 
     def load_processes(self):
-        """
-        Show processes with rolling-average CPU usage, filtered and sorted.
-        """
         self.table.setUpdatesEnabled(False)
         try:
             self.table.itemChanged.disconnect(self.sync_checkbox_states)
         except TypeError:
             pass
 
-        # Remember checked processes
         self.selected_process_names = set()
         for row in range(self.table.rowCount()):
             checkbox_item = self.table.item(row, 0)
@@ -352,12 +330,10 @@ class FPSBoosterApp(QtWidgets.QWidget):
 
         self.table.setRowCount(0)
 
-        # Build list from rolling average
         full_list = []
         for pid, proc in self.process_map.items():
             if pid not in self.rolling_usage:
                 continue
-
             cpu_deque = self.rolling_usage[pid]["cpu_history"]
             mem_deque = self.rolling_usage[pid]["mem_history"]
             if len(cpu_deque) == 0:
@@ -367,8 +343,7 @@ class FPSBoosterApp(QtWidgets.QWidget):
             avg_mem = sum(mem_deque) / len(mem_deque) if len(mem_deque) > 0 else 0
             name = proc.name()
 
-            # GPU usage placeholder
-            gpu_usage = 0.0
+            gpu_usage = 0.0  # placeholder
 
             full_list.append({
                 'pid': pid,
@@ -378,14 +353,12 @@ class FPSBoosterApp(QtWidgets.QWidget):
                 'gpu_percent': gpu_usage
             })
 
-        # Filter
         if self.filter_text:
             full_list = [p for p in full_list if self.filter_text in p['name'].lower()]
 
         if self.filter_blacklisted_only:
             full_list = [p for p in full_list if is_process_blacklisted(p['name'].split()[0].lower())]
 
-        # Sort
         sort_option = self.sort_dropdown.currentText()
         if sort_option == "CPU Usage":
             full_list.sort(key=lambda x: -x['cpu_percent'])
@@ -396,11 +369,8 @@ class FPSBoosterApp(QtWidgets.QWidget):
         elif sort_option == "GPU Usage":
             full_list.sort(key=lambda x: -x['gpu_percent'])
 
-        # Rebuild table
         for row, proc in enumerate(full_list):
             self.table.insertRow(row)
-
-            # Checkbox
             checkbox = QtWidgets.QTableWidgetItem()
             checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             if proc['name'].lower() in self.selected_process_names:
@@ -409,23 +379,18 @@ class FPSBoosterApp(QtWidgets.QWidget):
                 checkbox.setCheckState(Qt.Unchecked)
             self.table.setItem(row, 0, checkbox)
 
-            # PID
             pid_item = QtWidgets.QTableWidgetItem(str(proc['pid']))
             self.table.setItem(row, 1, pid_item)
 
-            # Process Name
             name_item = QtWidgets.QTableWidgetItem(proc['name'])
             self.table.setItem(row, 2, name_item)
 
-            # CPU %
             cpu_item = QtWidgets.QTableWidgetItem(f"{proc['cpu_percent']:.2f}")
             self.table.setItem(row, 3, cpu_item)
 
-            # Memory %
             mem_item = QtWidgets.QTableWidgetItem(f"{proc['memory_percent']:.2f}")
             self.table.setItem(row, 4, mem_item)
 
-            # GPU %
             gpu_val = f"{proc['gpu_percent']:.2f}" if proc['gpu_percent'] > 0 else "N/A"
             gpu_item = QtWidgets.QTableWidgetItem(gpu_val)
             self.table.setItem(row, 5, gpu_item)
@@ -455,7 +420,6 @@ class FPSBoosterApp(QtWidgets.QWidget):
             self.table.itemChanged.connect(self.sync_checkbox_states)
 
     def kill_selected(self):
-        """Kill selected processes."""
         killed_count = 0
         for row in range(self.table.rowCount()):
             checkbox_item = self.table.item(row, 0)
@@ -489,22 +453,42 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.load_processes()
 
     def remove_from_whitelist(self):
-        selected_rows = self.whitelist_table.selectionModel().selectedRows()
-        if not selected_rows:
-            QtWidgets.QMessageBox.information(self, "No Selection",
-                                              "Please select a process to remove from the Whitelist.")
-            return
+        # If this was triggered from the advanced tab, remove from that table
+        if self.sender() == self.remove_whitelist_btn2:
+            selected_rows = self.table.selectionModel().selectedRows()
+            if not selected_rows:
+                QtWidgets.QMessageBox.information(self, "No Selection",
+                                                  "Please select a process to remove from the Whitelist.")
+                return
 
-        whitelist = load_json_file(USER_WHITELIST_FILE, "user_defined_whitelist")
+            whitelist = load_json_file(USER_WHITELIST_FILE, "user_defined_whitelist")
+            for row in selected_rows:
+                process_name = self.table.item(row.row(), 2).text().split()[0]
+                if process_name in whitelist:
+                    whitelist.remove(process_name)
 
-        for row in selected_rows:
-            process_name = self.whitelist_table.item(row.row(), 0).text()
-            if process_name in whitelist:
-                whitelist.remove(process_name)
+            save_json_file(USER_WHITELIST_FILE, "user_defined_whitelist", whitelist)
+            QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Whitelist.")
+            self.load_processes()
 
-        save_json_file(USER_WHITELIST_FILE, "user_defined_whitelist", whitelist)
-        QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Whitelist.")
-        self.load_manage_lists()
+        else:
+            # If triggered from the Manage Lists tab:
+            selected_rows = self.whitelist_table.selectionModel().selectedRows()
+            if not selected_rows:
+                QtWidgets.QMessageBox.information(self, "No Selection",
+                                                  "Please select a process to remove from the Whitelist.")
+                return
+
+            whitelist = load_json_file(USER_WHITELIST_FILE, "user_defined_whitelist")
+
+            for row in selected_rows:
+                process_name = self.whitelist_table.item(row.row(), 0).text()
+                if process_name in whitelist:
+                    whitelist.remove(process_name)
+
+            save_json_file(USER_WHITELIST_FILE, "user_defined_whitelist", whitelist)
+            QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Whitelist.")
+            self.load_manage_lists()
 
     def add_selected_to_blacklist(self):
         blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
@@ -521,22 +505,42 @@ class FPSBoosterApp(QtWidgets.QWidget):
         self.load_processes()
 
     def remove_from_blacklist(self):
-        selected_rows = self.blacklist_table.selectionModel().selectedRows()
-        if not selected_rows:
-            QtWidgets.QMessageBox.information(self, "No Selection",
-                                              "Please select a process to remove from the Blacklist.")
-            return
+        # If triggered from the advanced tab
+        if self.sender() == self.remove_blacklist_btn2:
+            selected_rows = self.table.selectionModel().selectedRows()
+            if not selected_rows:
+                QtWidgets.QMessageBox.information(self, "No Selection",
+                                                  "Please select a process to remove from the Blacklist.")
+                return
 
-        blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
+            blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
+            for row in selected_rows:
+                process_name = self.table.item(row.row(), 2).text().split()[0]
+                if process_name in blacklist:
+                    blacklist.remove(process_name)
 
-        for row in selected_rows:
-            process_name = self.blacklist_table.item(row.row(), 0).text()
-            if process_name in blacklist:
-                blacklist.remove(process_name)
+            save_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist", blacklist)
+            QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Blacklist.")
+            self.load_processes()
 
-        save_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist", blacklist)
-        QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Blacklist.")
-        self.load_manage_lists()
+        else:
+            # If triggered from the Manage Lists tab:
+            selected_rows = self.blacklist_table.selectionModel().selectedRows()
+            if not selected_rows:
+                QtWidgets.QMessageBox.information(self, "No Selection",
+                                                  "Please select a process to remove from the Blacklist.")
+                return
+
+            blacklist = load_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist")
+
+            for row in selected_rows:
+                process_name = self.blacklist_table.item(row.row(), 0).text()
+                if process_name in blacklist:
+                    blacklist.remove(process_name)
+
+            save_json_file(USER_BLACKLIST_FILE, "user_defined_blacklist", blacklist)
+            QtWidgets.QMessageBox.information(self, "Removed", "Selected process(es) removed from the Blacklist.")
+            self.load_manage_lists()
 
     def update_filter_text(self, text):
         self.filter_text = text.lower()
@@ -550,17 +554,11 @@ class FPSBoosterApp(QtWidgets.QWidget):
     # 6) Periodic Refresh
     ############################################################
     def start_auto_refresh(self):
-        """Refresh both Basic and Advanced tables every 3 seconds."""
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.refresh_all_tables)
         self.timer.start(3000)  # 3 seconds
 
     def refresh_all_tables(self):
-        """
-        1) Update process_map so psutil tracks CPU usage between refreshes.
-        2) Update rolling averages.
-        3) Load Basic/Advanced tables.
-        """
         self.update_process_map()
         self.load_basic_table()
         self.load_processes()
@@ -569,17 +567,10 @@ class FPSBoosterApp(QtWidgets.QWidget):
     # 7) Maintaining psutil.Process Objects + Rolling Averages
     ############################################################
     def update_process_map(self):
-        """
-        - Remove dead processes
-        - Add new ones (skipping System Idle Process)
-        - Call cpu_percent(interval=None) to measure usage
-        - Update rolling_usage with new CPU/memory readings
-        """
-        # 1) Remove ended processes
         dead_pids = []
         for pid, proc in self.process_map.items():
             try:
-                proc.status()  # Raises NoSuchProcess if dead
+                proc.status()
             except psutil.NoSuchProcess:
                 dead_pids.append(pid)
 
@@ -588,12 +579,10 @@ class FPSBoosterApp(QtWidgets.QWidget):
                 del self.rolling_usage[pid]
             del self.process_map[pid]
 
-        # 2) Add new processes
         for pinfo in psutil.process_iter(['pid', 'name']):
             pid = pinfo.info['pid']
             name = pinfo.info['name'].lower()
             if pid == 0 or name == "system idle process":
-                # Skip idle
                 continue
 
             if pid not in self.process_map:
@@ -602,36 +591,43 @@ class FPSBoosterApp(QtWidgets.QWidget):
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
 
-        # 3) Now measure usage and update rolling averages
         for pid, proc in self.process_map.items():
             try:
-                # raw per-core usage
                 raw_cpu = proc.cpu_percent(interval=None)
-                # scale to total cores
                 scaled_cpu = raw_cpu / self.num_cores
-
-                # memory usage
                 mem_usage = proc.memory_percent()
 
-                # Initialize rolling usage dict if not present
                 if pid not in self.rolling_usage:
                     self.rolling_usage[pid] = {
                         "cpu_history": deque(maxlen=self.history_size),
                         "mem_history": deque(maxlen=self.history_size)
                     }
 
-                # Append new readings
                 self.rolling_usage[pid]["cpu_history"].append(scaled_cpu)
                 self.rolling_usage[pid]["mem_history"].append(mem_usage)
 
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
 
+
 ############################################################
-# Entry Point
+# 8) Loading the Style Sheet & Entry Point
 ############################################################
+def load_stylesheet(app, stylesheet_path="style.qss"):
+    """Load the QSS file and apply it to the application."""
+    with open(stylesheet_path, "r", encoding="utf-8") as f:
+        style = f.read()
+    app.setStyleSheet(style)
+
 def run_app():
     app = QtWidgets.QApplication(sys.argv)
+
+    # Optionally use a built-in style for extra polish before applying QSS
+    app.setStyle("Fusion")
+
+    # Load our custom QSS
+    load_stylesheet(app, "style.qss")  # path to the QSS file
+
     window = FPSBoosterApp()
     window.show()
     sys.exit(app.exec_())

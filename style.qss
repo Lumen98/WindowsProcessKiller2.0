@@ -1,0 +1,108 @@
+/* style.qss */
+
+/* 1) Global Style for the entire window */
+QWidget {
+    background-color: #fafafa;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10pt;
+    color: #2d2d2d;
+}
+
+/* We'll specifically style the main window by its objectName (#MainWindowBase). */
+#MainWindowBase {
+    /* You can give a distinct background or keep it the same */
+    background-color: #fdfdfd;
+    border: 1px solid #cccccc; /* Subtle border, optional */
+}
+
+/* 2) Tab Widget & Tab Bar */
+QTabWidget::pane {
+    background-color: #ffffff;
+    border: 1px solid #dddddd;
+    border-radius: 6px;
+    margin: 6px;
+}
+
+QTabBar::tab {
+    background-color: #eeeeee;
+    border: 1px solid #cccccc;
+    border-bottom-color: #999999; /* for visual separation */
+    border-radius: 4px 4px 0 0;
+    padding: 6px 12px;
+    margin-right: 1px;
+}
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    border-color: #999999;
+    font-weight: bold;
+    color: #000000;
+}
+
+/* 3) GroupBoxes (Manage Lists Tab) */
+QGroupBox {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    margin-top: 8px;
+    padding: 8px;
+    font-weight: bold;
+}
+
+/* The group box title needs a slight offset at the top */
+QGroupBox:title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 3px;
+    margin-left: 4px;
+    margin-top: 4px;
+    font-size: 9pt;
+}
+
+/* 4) Tables: QTableWidget, QHeaderView, etc. */
+QTableWidget {
+    gridline-color: #e0e0e0;
+    background-color: #ffffff;
+    alternate-background-color: #f9f9f9;
+}
+
+QHeaderView::section {
+    background-color: #f0f0f0;
+    border: 1px solid #cccccc;
+    font-weight: bold;
+    padding: 4px;
+}
+
+/* Make rows alternate in color if you enable setAlternatingRowColors(True) */
+QTableView {
+    selection-background-color: #d0e2f2;
+    selection-color: #000000;
+}
+
+/* 5) Buttons */
+QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+}
+
+QPushButton:hover {
+    background-color: #005fa3;
+}
+
+/* Disabled buttons */
+QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}
+
+/* If you want a special look for the "One-Click Boost" button,
+   give it an objectName in code: self.one_click_boost_btn.setObjectName("OneClickBoostBtn") */
+#OneClickBoostBtn {
+    background-color: #ffa500; /* e.g., an orange color to stand out */
+    font-weight: bold;
+}
+
+#OneClickBoostBtn:hover {
+    background-color: #ff8c00;
+}
