@@ -1,7 +1,6 @@
 {
-  "user_defined_blacklist": [
-    "EpicGamesLauncher.exe",
-    "SteamService.exe",
-    "YourPhone.exe"
-  ]
+    "user_defined_blacklist": [
+        "gamingservices.exe",
+        "gamingservicesnet.exe"
+    ]
 }

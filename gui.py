@@ -240,37 +240,33 @@ class FPSBoosterApp(QtWidgets.QWidget):
         for pid, proc in self.process_map.items():
             if pid not in self.rolling_usage:
                 continue
-            cpu_deque = self.rolling_usage[pid]["cpu_history"]
-            if len(cpu_deque) == 0:
-                continue
 
-            avg_cpu = sum(cpu_deque) / len(cpu_deque)
+            # Get the process name
             name = proc.name()
             process_list.append({
                 'pid': pid,
                 'name': name,
-                'avg_cpu': avg_cpu
             })
 
-        # Sort descending by CPU
-        process_list.sort(key=lambda x: x['avg_cpu'], reverse=True)
-        top_processes = process_list[:10]
+        # Sort processes alphabetically for consistent behavior (optional)
+        process_list.sort(key=lambda x: x['name'].lower())
 
         kill_count = 0
-        for item in top_processes:
+        for item in process_list:
             pid = item['pid']
             real_name = item['name'].split()[0]
             lower_name = real_name.lower()
 
-            # If blacklisted or usage > 10%, attempt to kill
-            if is_process_blacklisted(lower_name) or item['avg_cpu'] > 10.0:
+            # Only kill processes that are explicitly blacklisted
+            if is_process_blacklisted(lower_name):
                 if safe_kill(pid, parent_window=self):
                     kill_count += 1
 
+        # Show a message box with the number of killed processes
         QtWidgets.QMessageBox.information(
             self,
             "One-Click Boost",
-            f"Killed {kill_count} processes hogging CPU!"
+            f"Killed {kill_count} blacklisted processes!"
         )
 
     ############################################################
@@ -396,16 +392,16 @@ class FPSBoosterApp(QtWidgets.QWidget):
         if self.filter_blacklisted_only:
             full_list = [p for p in full_list if is_process_blacklisted(p['name'].split()[0].lower())]
 
-        # Sort
+        # Sort with checked processes at the top
         sort_option = self.sort_dropdown.currentText()
         if sort_option == "CPU Usage":
-            full_list.sort(key=lambda x: -x['cpu_percent'])
+            full_list.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, -x['cpu_percent']))
         elif sort_option == "Memory Usage":
-            full_list.sort(key=lambda x: -x['memory_percent'])
+            full_list.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, -x['memory_percent']))
         elif sort_option == "Alphabetical":
-            full_list.sort(key=lambda x: x['name'].lower())
+            full_list.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, x['name'].lower()))
         elif sort_option == "GPU Usage":
-            full_list.sort(key=lambda x: -x['gpu_percent'])
+            full_list.sort(key=lambda x: (x['name'].lower() not in self.selected_process_names, -x['gpu_percent']))
 
         # Populate table
         for row, proc in enumerate(full_list):
