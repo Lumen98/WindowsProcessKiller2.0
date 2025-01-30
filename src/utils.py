@@ -4,10 +4,11 @@ import ctypes
 import sys
 from datetime import datetime
 
-CACHE_FILE = "cache.json"
-LOG_FILE = "kill_log.txt"
-USER_WHITELIST_FILE = "user_whitelist.json"
-USER_BLACKLIST_FILE = "user_blacklist.json"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CACHE_FILE = os.path.join(BASE_DIR, "config", "cache.json")
+LOG_FILE = os.path.join(BASE_DIR, "config", "kill_log.txt")
+USER_WHITELIST_FILE = os.path.join(BASE_DIR, "config", "user_whitelist.json")
+USER_BLACKLIST_FILE = os.path.join(BASE_DIR, "config", "user_blacklist.json")
 
 def load_cached_processes():
     """Load the list of selected processes from a cache file."""

@@ -1,7 +1,7 @@
 import sys
 import ctypes
-from utils import is_admin, run_as_admin
-from gui import run_app
+from src.utils import is_admin, run_as_admin
+from src.gui import run_app
 
 def hide_console():
     """Hide the console window (Windows only)."""

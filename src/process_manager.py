@@ -5,6 +5,12 @@ import subprocess
 import ctypes
 from PyQt5 import QtWidgets
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Points to FPSBooster/
+PROCESS_WHITELIST = os.path.join(BASE_DIR, "config", "process_whitelist.json")
+USER_WHITELIST = os.path.join(BASE_DIR, "config", "user_whitelist.json")
+USER_BLACKLIST = os.path.join(BASE_DIR, "config", "user_blacklist.json")
+
+
 # GPU monitoring (optional)
 try:
     import GPUtil
@@ -12,18 +18,18 @@ try:
 except ImportError:
     HAS_GPU = False
 
-from utils import log_kill_action, load_json_file
+from src.utils import log_kill_action, load_json_file
 from PyQt5.QtWidgets import QMessageBox
 
 # Load system-level whitelist
-with open('process_whitelist.json') as f:
+with open(PROCESS_WHITELIST, 'r') as f:
     SYSTEM_WHITELIST = json.load(f)["critical_processes"]
 
 def load_user_whitelist():
-    return load_json_file("user_whitelist.json", "user_defined_whitelist")
+    return load_json_file(USER_WHITELIST, "user_defined_whitelist")
 
 def load_user_blacklist():
-    return load_json_file("user_blacklist.json", "user_defined_blacklist")
+    return load_json_file(USER_BLACKLIST, "user_defined_blacklist")
 
 def is_system_process(proc):
     """Check if a process is a system-level process."""

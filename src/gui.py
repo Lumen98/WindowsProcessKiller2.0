@@ -8,9 +8,8 @@ from PyQt5.QtCore import Qt
 
 # from process_manager import safe_kill, is_process_blacklisted
 # We'll assume you have safe_kill in a separate module. If not, define your safe_kill here.
-from process_manager import safe_kill
-
-from utils import (
+from src.process_manager import safe_kill
+from src.utils import (
     load_cached_processes,
     save_cached_processes,
     load_json_file,
@@ -163,7 +162,7 @@ class FPSBoosterApp(QtWidgets.QWidget):
         logo_frame.setLayout(logo_layout)
 
         self.logo_label = QtWidgets.QLabel()
-        pixmap = QtGui.QPixmap("logo.png")
+        pixmap = QtGui.QPixmap("../assets/logo.png")
         if not pixmap.isNull():
             # Keep aspect ratio & use smooth transformation
             scaled_pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -661,7 +660,7 @@ def run_app():
     # Optional: Use a built-in style first, then apply QSS
     app.setStyle("Fusion")
 
-    load_stylesheet(app, "style.qss")  # Update path if needed
+    load_stylesheet(app, "../assets/style.qss")  # Update path if needed
 
     window = FPSBoosterApp()
     window.show()
