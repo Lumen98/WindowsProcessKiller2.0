@@ -2,6 +2,7 @@
 
 import sys
 import psutil
+import os
 from collections import deque
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt
@@ -17,6 +18,11 @@ from src.utils import (
     USER_WHITELIST_FILE,
     USER_BLACKLIST_FILE
 )
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STYLES_PATH = os.path.join(BASE_DIR, "assets", "style.qss")
+LOGO_PATH = os.path.join(BASE_DIR, "assets", "logo.png")
+
+
 
 ############################################################
 # PLACEHOLDER if you need is_process_blacklisted from process_manager
@@ -162,7 +168,7 @@ class FPSBoosterApp(QtWidgets.QWidget):
         logo_frame.setLayout(logo_layout)
 
         self.logo_label = QtWidgets.QLabel()
-        pixmap = QtGui.QPixmap("../assets/logo.png")
+        pixmap = QtGui.QPixmap(LOGO_PATH)
         if not pixmap.isNull():
             # Keep aspect ratio & use smooth transformation
             scaled_pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -660,7 +666,7 @@ def run_app():
     # Optional: Use a built-in style first, then apply QSS
     app.setStyle("Fusion")
 
-    load_stylesheet(app, "../assets/style.qss")  # Update path if needed
+    load_stylesheet(app, STYLES_PATH)  # Update path if needed
 
     window = FPSBoosterApp()
     window.show()
