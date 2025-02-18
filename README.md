@@ -1,3 +1,5 @@
+⚠️ This project is licensed under Creative Commons BY-NC 4.0. Commercial use, resale, or redistribution without permission is strictly prohibited.
+
 FPS Booster
 
 A powerful and user-friendly Windows application to optimize system performance by managing and terminating unnecessary processes. It provides both basic and advanced controls for users to boost FPS and overall system efficiency.
