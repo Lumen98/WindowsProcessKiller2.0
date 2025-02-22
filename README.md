@@ -111,7 +111,7 @@ Admin Rights: The app requires admin permissions to manage system processes effe
 
 👨‍💻 Author
 
-Developed by [Your Name]For inquiries or support, please contact: [Your Email]
+Developed by Lumen98. For inquiries or support, please contact: Lumenngoods@gmail.com.
 
 🔒 License
 
